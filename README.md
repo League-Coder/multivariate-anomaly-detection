@@ -23,12 +23,16 @@ The goal of this adaptation was to evaluate whether TranAD can effectively detec
 The SWaT dataset is not included in this repository due to its size and licensing restrictions.
 
 To reproduce the results:
+https://www.kaggle.com/datasets/vishala28/swat-dataset-secure-water-treatment-system?utm_source=chatgpt.com&select=normal.csv
 
 Obtain the SWaT dataset and place the raw files in:
+Format is -
 data/swat/raw/
-├── normal.csv
-├── attack.csv
-└── merged.csv
+│
+├── normal.csv   
+├── attack.csv  
+├── merged.csv  
+
 Generate the processed arrays:
 python code/preprocess_swat.py
 Train the model:
