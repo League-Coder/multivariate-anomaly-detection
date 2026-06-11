@@ -10,6 +10,90 @@ This project accompanies a forthcoming blog post about the prototype and its des
 
 The modeling approach is based on: Tuli, S., Casale, G., & Jennings, N. R. (2022). "TranAD: Deep Transformer Networks for Anomaly Detection in Multivariate Time Series Data." *PVLDB*, 15(6), 1201-1214.
 
+## SWaT Dataset Adaptation
+
+### Overview
+
+In addition to the original Server Machine Dataset (SMD) workflow, this repository was adapted to support the Secure Water Treatment (SWaT) dataset. SWaT is a cyber-physical industrial control system testbed consisting of 51 interconnected sensors and actuators that model a real-world water treatment process.
+
+The goal of this adaptation was to evaluate whether TranAD can effectively detect abnormal process behavior and cyberattacks in industrial control system telemetry.
+
+### SWaT Dataset Setup
+
+The SWaT dataset is not included in this repository due to its size and licensing restrictions.
+
+To reproduce the results:
+
+Obtain the SWaT dataset and place the raw files in:
+data/swat/raw/
+├── normal.csv
+├── attack.csv
+└── merged.csv
+Generate the processed arrays:
+python code/preprocess_swat.py
+Train the model:
+python code/train_swat.py
+Evaluate the trained model:
+python code/7_evaluate_swat.py
+
+The preprocessing pipeline will automatically generate the required normalized NumPy arrays under:
+
+data/swat/processed/
+
+Training artifacts and checkpoints will be written to:
+
+models/tranad/swat/
+
+### Added Components
+
+The following SWaT-specific components were added:
+
+* `code/5_preprocess_swat.py`
+* `code/6_train_swat.py`
+* `code/7_evaluate_swat.py`
+* SWaT exploratory analysis notebook
+* SWaT preprocessing pipeline
+* SWaT evaluation workflow
+
+### SWaT Preprocessing
+
+The preprocessing pipeline:
+
+1. Loads raw SWaT CSV files.
+2. Cleans and validates sensor data.
+3. Reduce test data size to reduce computational time
+4. Converts attack labels into binary anomaly labels.
+5. Applies min-max normalization using normal operating data.
+6. Exports processed NumPy arrays for TranAD training and evaluation.
+
+### Implementation Changes
+
+Several configuration updates were required to adapt TranAD from the SMD dataset to SWaT:
+
+- Added SWaT-specific preprocessing, training, and evaluation workflows.
+- Updated dataset loading paths and default configuration settings for SWaT.
+- Adapted the model configuration for SWaT's 51-feature input space.
+- Adjusted the transformer attention head configuration (`n_heads = 2`) to maintain compatibility with the modified embedding dimension.
+- Replaced the original SMD evaluation workflow with a SWaT-specific evaluation pipeline.
+- Used percentile-based thresholding for anomaly detection evaluation.
+
+### Results
+
+Using percentile-based thresholding (99.9 percentile), the adapted TranAD workflow achieved:
+
+| Metric    | Value  |
+| --------- | ------ |
+| F1 Score  | 0.9993 |
+| Precision | 0.9985 |
+| Recall    | 1.0000 |
+| ROC-AUC   | 0.9996 |
+
+These results demonstrate that TranAD can successfully model multivariate industrial process behavior and identify attack periods within the SWaT dataset.
+
+### Limitations
+
+Unlike SMD, the SWaT dataset provides time-level attack labels rather than feature-level root-cause labels. Therefore, the original interpretation-label evaluation metrics were not used in this adaptation.
+
 ---
 
 ## Project Structure

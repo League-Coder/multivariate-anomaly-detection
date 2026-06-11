@@ -36,6 +36,9 @@ data/smd/raw/
 data/smd/processed/
 models/tranad/initial/
 models/tranad/best/
+data/swat/raw/
+data/swat/processed/
+models/tranad/swat/
 *.npy
 *.pkl
 *.pt

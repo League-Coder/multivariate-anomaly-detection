@@ -9,6 +9,7 @@ import logging
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -200,3 +201,86 @@ def load_processed_data(
     test_labels = np.load(data_dir / f"{machine_id}_test_labels.npy")
     interp_labels = np.load(data_dir / f"{machine_id}_interp_labels.npy")
     return train, test, test_labels, interp_labels
+
+
+# Swat Preprocessing
+
+
+def preprocess_swat(raw_dir: Path, output_dir: Path) -> dict[str, tuple]:
+    """Preprocess SWaT normal/attack CSVs into TranAD-ready numpy arrays."""
+
+    normal = pd.read_csv(raw_dir / "normal.csv")
+    merged = pd.read_csv(raw_dir / "merged.csv")
+
+    # Clean column names because SWaT has spaces like " Timestamp", " MV101"
+    normal.columns = normal.columns.str.strip()
+    merged.columns = merged.columns.str.strip()
+
+    # Remove duplicate rows
+    normal = normal.drop_duplicates()
+
+    # Use a manageable subset for training
+    normal = normal.iloc[:73045]
+
+    # Reduce test set size
+    merged_labels = merged["Normal/Attack"].astype(str).str.strip()
+
+    normal_test = merged[merged_labels == "Normal"].iloc[:100000]
+    attack_test = merged[merged_labels == "Attack"]
+
+    merged = pd.concat([normal_test, attack_test], ignore_index=True)
+
+    print(f"Training rows after cleaning: {len(normal):,}")
+    print(f"Reduced test rows: {len(merged):,}")
+
+    # Labels: Normal = 0, Attack = 1
+    test_labels = (
+        merged["Normal/Attack"]
+        .astype(str)
+        .str.strip()
+        .map({"Normal": 0, "Attack": 1})
+        .to_numpy(dtype=np.float64)
+    )
+
+    # Drop timestamp and label columns
+    train = normal.drop(columns=["Timestamp", "Normal/Attack"])
+    test = merged.drop(columns=["Timestamp", "Normal/Attack"])
+
+    # Convert sensor columns to numbers
+    train = train.apply(pd.to_numeric, errors="coerce")
+    test = test.apply(pd.to_numeric, errors="coerce")
+
+    # Fill missing values
+    train = train.ffill().bfill()
+    test = test.ffill().bfill()
+
+    train = train.to_numpy(dtype=np.float64)
+    test = test.to_numpy(dtype=np.float64)
+
+    # Normalize based on normal training data only
+    train_norm, min_vals, max_vals = normalize(train)
+    test_norm, _, _ = normalize(test, min_vals, max_vals)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    np.save(output_dir / "swat_train.npy", train_norm)
+    np.save(output_dir / "swat_test.npy", test_norm)
+    np.save(output_dir / "swat_test_labels.npy", test_labels)
+    np.save(output_dir / "swat_norm_params.npy", np.stack([min_vals, max_vals]))
+
+
+    return {
+        "train": train_norm.shape,
+        "test": test_norm.shape,
+        "test_labels": test_labels.shape,
+        "norm_params": (2, train.shape[1]),
+    }
+
+
+def load_processed_swat_data(data_dir: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Load preprocessed SWaT arrays."""
+    train = np.load(data_dir / "swat_train.npy")
+    test = np.load(data_dir / "swat_test.npy")
+    test_labels = np.load(data_dir / "swat_test_labels.npy")
+    return train, test, test_labels
+
